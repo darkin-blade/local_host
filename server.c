@@ -36,8 +36,8 @@ int main()
       int nread = recv(c_sock, buf, sizeof(buf), 0);
       read_request();// TODO
 
-      CYAN("%d", nread);
-      CYAN("%s", buf);
+      // CYAN("%d", nread);
+      // CYAN("%s", buf);
 
       send_file();
       close(c_sock);
@@ -76,7 +76,6 @@ void read_request()
         j ++, i ++;
       }
       file[j] = '\0';
-      CYAN("%s", file);
       return;
     }
   }
@@ -84,41 +83,49 @@ void read_request()
 
 void send_file()
 {
-  int is_html = 0;
+  int is_html = 1;
   if (strcmp(file, "/") == 0) {
     sprintf(file, "index.html");
-    is_html = 1;
   } else {
     sprintf(file, "%s", file + 1);// skip `/`
+    int request_len = strlen(file);
+    if (file[request_len - 3] == 'p' && file[request_len - 2] == 'n' && file[request_len - 1] == 'g') {
+      is_html = 0;
+    }
   }
 
   FILE *fp = fopen(file, "r");
-  if (1 == 1) {
-    // count file length
-    int file_len = 0;
-    while (fgets(msg, 1000, fp)) {// read by lines
-      file_len += strlen(msg);
-    }
+  // count file length
+  int file_len = 0;
+  while (fgets(msg, 1000, fp)) {// read by lines
+    file_len += strlen(msg);
+  }
 
-    // send http header
+  // send http header
+  if (is_html == 1) {
     sprintf(head, 
         "HTTP/1.1 200 OK\n"
-        // "Content-Type: text/html\n"
+        "Content-Type: text/html\n"
         "Content-Length: %d\n"
         "\n", file_len
         );
-
-    // send file content
-    CYAN("%d", fseek(fp, 0, SEEK_SET));
-    memset(msg, 0, sizeof(msg));
-    send(c_sock, head, strlen(head), 0);
-    while (fgets(msg, 1000, fp)) {// read by lines
-      send(c_sock, msg, strlen(msg), 0);
-    }
-  } else if (is_html == 0) {
-    while (fgets(msg, 1000, fp)) {// read by lines
-      send(c_sock, msg, strlen(msg), 0);
-    }
+  } else {
+    sprintf(head, 
+        "HTTP/1.1 200 OK\n"
+        "Content-Type: image/png\n"
+        "Content-Length: %d\n"
+        "\n", file_len
+        );
+    CYAN("%s", file);
   }
+
+  // send file content
+  fseek(fp, 0, SEEK_SET);
+  memset(msg, 0, sizeof(msg));
+  send(c_sock, head, strlen(head), 0);
+  while (fgets(msg, 1000, fp)) {// read by lines
+    send(c_sock, msg, strlen(msg), 0);
+  }
+
   fclose(fp);
 }
