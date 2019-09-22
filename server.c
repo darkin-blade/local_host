@@ -66,36 +66,58 @@ void init_server()
 
 void read_request()
 {
-  return;
   int buf_len = strlen(buf);
-  int i = 0;
-  for (i = 0; i < buf_len; i ++) {
-    ;
+  int i = 0, j = 0;
+  for (i = 0; i < buf_len - 10; i ++) {
+    if (buf[i] == 'G' && buf[i + 1] == 'E' && buf[i + 2] == 'T') {// `GET` keyword
+      i = i + 4;// skip space
+      while (buf[i] != ' ') {
+        file[j] = buf[i];
+        j ++, i ++;
+      }
+      file[j] = '\0';
+      CYAN("%s", file);
+      return;
+    }
   }
 }
 
 void send_file()
 {
-  int file_len = 0;
-  FILE *fp = fopen("test.html", "r");
-  while (fgets(msg, 1000, fp)) {// read by lines
-    file_len += strlen(msg);
+  int is_html = 0;
+  if (strcmp(file, "/") == 0) {
+    sprintf(file, "test.html");
+    is_html = 1;
+  } else {
+    sprintf(file, "%s", file + 1);// skip `/`
   }
 
-  // send http header
-  sprintf(head, 
-      "HTTP/1.1 200 OK\n"
-      "Content-Type: text/html\n"
-      "Content-Length: %d\n"
-      "\n", file_len
-      );
+  FILE *fp = fopen(file, "r");
+  if (is_html == 1) {
+    int file_len = 0;
+    while (fgets(msg, 1000, fp)) {// read by lines
+      file_len += strlen(msg);
+    }
 
-  // send file content
-  CYAN("%d", fseek(fp, 0, SEEK_SET));
-  memset(msg, 0, sizeof(msg));
-  send(c_sock, head, strlen(head), 0);
-  while (fgets(msg, 1000, fp)) {// read by lines
-    send(c_sock, msg, strlen(msg), 0);
+    // send http header
+    sprintf(head, 
+        "HTTP/1.1 200 OK\n"
+        // "Content-Type: text/html\n"
+        "Content-Length: %d\n"
+        "\n", file_len
+        );
+
+    // send file content
+    CYAN("%d", fseek(fp, 0, SEEK_SET));
+    memset(msg, 0, sizeof(msg));
+    send(c_sock, head, strlen(head), 0);
+    while (fgets(msg, 1000, fp)) {// read by lines
+      send(c_sock, msg, strlen(msg), 0);
+    }
+  } else {
+    while (fgets(msg, 1000, fp)) {// read by lines
+      send(c_sock, msg, strlen(msg), 0);
+    }
   }
   fclose(fp);
 }
