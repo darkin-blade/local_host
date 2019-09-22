@@ -10,12 +10,18 @@
 #define CYAN(format, ...) \
   printf("\033[1;36m" format "\33[0m\n", ## __VA_ARGS__)
 
-struct sockaddr_in servaddr;
+struct sockaddr_in s_addr;
 char buf[4096];
 char head[1024];
 const char *msg =
   "<!DOCTYPE html>\n"
   "<html><body><h1>Hello, World!</h1></body></html>\n";
+
+  int s_socket;
+
+void init_server();
+void read_request();
+void send_file();
 
 int main() {
   CYAN("%d\n", strlen(msg));
@@ -26,16 +32,8 @@ int main() {
       );
   CYAN("%s\n", strcat(head, msg));
 
-  int res, s_socket = socket(AF_INET, SOCK_STREAM, 0);
-  assert(s_socket != -1);
-  servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  servaddr.sin_port = htons(8000);
+  init_server();
 
-  res = bind(s_socket, (struct sockaddr*)&servaddr, sizeof(servaddr));
-  if (res == -1) { perror("cannot bind"); exit(-1); }
-
-  listen(s_socket, 10);
   while (1) {
     int conn = accept(s_socket, NULL, NULL);
     if (conn != -1) {
@@ -49,4 +47,28 @@ int main() {
   close(s_socket);
 
   return 0;
+}
+
+void init_server()
+{
+  s_socket = socket(AF_INET, SOCK_STREAM, 0);
+  assert(s_socket != -1);
+  s_addr.sin_family = AF_INET;
+  s_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  s_addr.sin_port = htons(8000);
+
+  int res = bind(s_socket, (struct sockaddr*)&s_addr, sizeof(s_addr));
+  if (res == -1) { perror("cannot bind"); exit(-1); }
+
+  listen(s_socket, 10);
+}
+
+void read_request()
+{
+  ;
+}
+
+void send_file()
+{
+  ;
 }
