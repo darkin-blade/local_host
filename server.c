@@ -31,7 +31,7 @@ int main()
   init_server();
 
   while (1) {
-    int c_sock = accept(s_sock, (struct sockaddr *)&c_addr, &c_addr_size);
+    int c_sock = accept(s_sock, NULL, NULL);
 
     if (c_sock != -1) {
       int nread = recv(c_sock, buf, sizeof(buf), 0);
