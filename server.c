@@ -107,7 +107,6 @@ void send_file()
   fseek(fp, 0, SEEK_END);
   int file_len = ftell(fp);
   fseek(fp, 0, SEEK_SET);
-  CYAN("%s %d %d", file, file_len, file_len);
 
   // send http header
   if (strcmp(type, ".html") == 0) {
@@ -138,29 +137,33 @@ void send_file()
   memset(msg, 0, sizeof(msg));
 
   if (1) {
+    int delta = 0;
     while (fread(msg, 1024, 1, fp)) {// read by lines
       send(c_sock, msg, strlen(msg), 0);
+      delta += strlen(msg);
     }
     send(c_sock, msg, strlen(msg), 0);// TODO
+    delta += strlen(msg);
+    CYAN("%s %d %d", file, delta, file_len);
   } else {
-    int delta = 0;
-    while (file_len > 1024) {
-      delta = fread(msg, 1024, 1, fp);
-      if (delta == 0) {
-        fclose(fp);
-        return;
-      }
-      send_helper(msg, delta);
-      file_len -= delta;
-    }
-    if (file_len > 0) {
-      delta = fread(msg, 1024, 1, fp);
-      if (delta == 0) {
-        fclose(fp);
-        return;
-      }
-    }
-    send_helper(msg, delta);
+    // int delta = 0;
+    // while (file_len > 1024) {
+    //   delta = fread(msg, 1024, 1, fp);
+    //   if (delta == 0) {
+    //     fclose(fp);
+    //     return;
+    //   }
+    //   send_helper(msg, delta);
+    //   file_len -= delta;
+    // }
+    // if (file_len > 0) {
+    //   delta = fread(msg, 1024, 1, fp);
+    //   if (delta == 0) {
+    //     fclose(fp);
+    //     return;
+    //   }
+    // }
+    // send_helper(msg, delta);
   }
 
   fclose(fp);

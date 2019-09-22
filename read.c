@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -15,16 +17,17 @@ char content[4096];
 
 int main()
 {
-  FILE *fp = fopen("index.html", "rb");
+  int fd = open("index.html", O_RDONLY);
 
-  fseek(fp, 0, SEEK_SET);
-  int delta;
-  while (delta = fread(content, 1024, 1, fp)) {
-    CYAN("%d %s", delta, content);
+  int file_len = lseek(fd, 0, SEEK_END);
+  int delta = 0;
+  lseek(fd, 0, SEEK_SET);
+  while (delta < file_len) {
+    delta += read(fd, content, 1024);
+    CYAN("%d %d", delta, file_len);
   }
-  CYAN("%d %s", delta, content);
 
-  fclose(fp);
+  close(fd);
 
   return 0;
 }
