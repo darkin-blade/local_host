@@ -21,22 +21,23 @@ int main() {
   CYAN("%d\n", strlen(msg));
   sprintf(head, 
       "HTTP/1.1 200 OK\n"
-      "Content-Type: text/html\n"
-      "Content-Length: %d\n\n", (int)strlen(msg));
+      "Content-Type: text/html\n\n"
+      "Content-Length: %d\n\n", 1000
+      );
   CYAN("%s\n", strcat(head, msg));
 
-  int res, fd = socket(AF_INET, SOCK_STREAM, 0);
-  assert(fd != -1);
+  int res, s_socket = socket(AF_INET, SOCK_STREAM, 0);
+  assert(s_socket != -1);
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
   servaddr.sin_port = htons(8000);
 
-  res = bind(fd, (struct sockaddr*)&servaddr, sizeof(servaddr));
+  res = bind(s_socket, (struct sockaddr*)&servaddr, sizeof(servaddr));
   if (res == -1) { perror("cannot bind"); exit(-1); }
 
-  listen(fd, 10);
+  listen(s_socket, 10);
   while (1) {
-    int conn = accept(fd, NULL, NULL);
+    int conn = accept(s_socket, NULL, NULL);
     if (conn != -1) {
       int nread = recv(conn, buf, sizeof(buf), 0);
       // send(conn, strcat(head, msg), strlen(head) + strlen(msg), 0);
@@ -45,7 +46,7 @@ int main() {
       close(conn);
     }
   }
-  close(fd);
+  close(s_socket);
 
   return 0;
 }
