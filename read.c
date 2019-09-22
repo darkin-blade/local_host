@@ -17,7 +17,7 @@ char content[4096];
 
 int main()
 {
-  int fd = open("favicon.ico", O_RDONLY);
+  int fd = open("assets/Epsilon/Epsilon.moc", O_RDONLY);
 
   int file_len = lseek(fd, 0, SEEK_END);
   int delta = 0;

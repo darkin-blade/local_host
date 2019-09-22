@@ -89,7 +89,7 @@ void send_file()
 {
   int is_html = 1;
   if (strcmp(file, "/") == 0) {
-    sprintf(file, "test.html");
+    sprintf(file, "index.html");
     sprintf(type, ".html");
   } else {
     sprintf(file, "%s", file + 1);// skip `/`
@@ -128,7 +128,9 @@ void send_file()
       "HTTP/1.1 200 OK\r\n"
       "Content-Type: %s\r\n"
       "Content-Length: %d\r\n"
-      "\r\n", type, file_len
+      "\r\n"
+      , type
+      , file_len
       );
   send(c_sock, head, strlen(head), 0);
 
@@ -139,11 +141,12 @@ void send_file()
   int delta = 0;
   while (delta < file_len) {// read by lines
     memset(msg, 0, 4096);
-    read(fd, msg, 1024);
-    delta += strlen(msg);
-    send(c_sock, msg, strlen(msg), 0);
+    int size = read(fd, msg, 1024);
+    delta += size;
+    // send(c_sock, msg, strlen(msg), 0);
+    send_helper(msg, size);
+    CYAN("%d %d", delta, file_len);
   }
-  CYAN("%s %d %d", file, delta, file_len);
 
   close(fd);
 }
