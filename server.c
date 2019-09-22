@@ -18,7 +18,7 @@ int c_sock;// clinet socket
 
 char buf[4096];// user agent
 char msg[4096];// file content
-char head[128];// http header
+char head[1024];// http header
 char file[128];// which file requested
 
 void init_server();
@@ -27,7 +27,6 @@ void send_file();
 
 int main() 
 {
-
   init_server();
 
   while (1) {
@@ -43,11 +42,9 @@ int main()
       send_file();
       close(c_sock);
     }
-
   }
 
   close(s_sock);
-
   return 0;
 }
 
@@ -60,7 +57,7 @@ void init_server()
   s_addr.sin_port = htons(8000);
 
   int res = bind(s_sock, (struct sockaddr*)&s_addr, sizeof(s_addr));
-  // if (res == -1) { perror("cannot bind"); exit(-1); }
+  if (res == -1) { perror("cannot bind"); exit(-1); }
 
   listen(s_sock, 10);// TODO
 
@@ -78,21 +75,25 @@ void read_request()
 
 void send_file()
 {
+  int file_len = 0;
+  FILE *fp = fopen("test.html", "r");
+  while (fgets(msg, 1000, fp)) {// read by lines
+    file_len += strlen(msg);
+  }
+  close(fp);
+
   // send http header
   sprintf(head, 
       "HTTP/1.1 200 OK\n"
       "Content-Type: text/html\n"
-      // "Content-Length: %d\n"
-      "\n"
-      // , strlen(msg)
+      "Content-Length: %d\n"
+      "\n", file_len
       );
   send(c_sock, head, strlen(head), 0);
 
   // send file content
-  FILE *fp = fopen("test.html", "r");
-  while (fgets(msg, 1000, fp)) {// read by lines
-    CYAN("%s", msg);
-
+  fp = fopen("test.html", "r");
+    while (fgets(msg, 1000, fp)) {// read by lines
     send(c_sock, msg, strlen(msg), 0);
   }
 }

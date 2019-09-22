@@ -11,12 +11,12 @@
   printf("\033[1;36m" format "\33[0m\n", ## __VA_ARGS__)
 
 struct sockaddr_in s_addr;
-char buf[4096];
-char head[1024];
-char msg[4096];
-
 int s_socket;
 int c_socket;
+
+char buf[4096];
+char msg[4096];
+char head[1024];
 
 void init_server();
 void read_request();
@@ -29,6 +29,7 @@ int main() {
     c_socket = accept(s_socket, NULL, NULL);
     if (c_socket != -1) {
       int nread = recv(c_socket, buf, sizeof(buf), 0);
+      read_request();
       CYAN("%d\n%s", nread, buf);
 
       send_file();
@@ -66,8 +67,9 @@ void send_file()
       "<html><body><h1>Hello, World!</h1></body></html>\n");
   sprintf(head, 
       "HTTP/1.1 200 OK\n"
-      "Content-Type: text/html\n"
+      // "Content-Type: text/html\n"
       "Content-Length: %d\n\n", strlen(msg));
+      
   send(c_socket, head, strlen(head), 0);
   send(c_socket, msg, strlen(msg), 0);
 }
