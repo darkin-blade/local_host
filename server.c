@@ -85,19 +85,19 @@ void send_file()
 {
   int is_html = 1;
   if (strcmp(file, "/") == 0) {
-    sprintf(file, "index.html");
+    sprintf(file, "test.html");
   } else {
     sprintf(file, "%s", file + 1);// skip `/`
-    // int request_len = strlen(file);
-    // if (file[request_len - 3] == 'p' && file[request_len - 2] == 'n' && file[request_len - 1] == 'g') {
-    //   is_html = 0;
-    // }
+    int request_len = strlen(file);
+    if (file[request_len - 3] == 'p' && file[request_len - 2] == 'n' && file[request_len - 1] == 'g') {
+      is_html = 0;
+    }
   }
 
-  FILE *fp = fopen(file, "rb");
   // count file length
-  int file_len = 0;
+  FILE *fp = fopen(file, "rb");
   fseek(fp, 0, SEEK_END);
+  int file_len = 0;
   int temp_len = ftell(fp);
   fseek(fp, 0, SEEK_SET);
   while (fgets(msg, 1000, fp)) {// read by lines
@@ -127,7 +127,8 @@ void send_file()
   fseek(fp, 0, SEEK_SET);
   memset(msg, 0, sizeof(msg));
   send(c_sock, head, strlen(head), 0);
-  while (fgets(msg, 1000, fp)) {// read by lines
+  while (fread(msg, 1024, 1, fp)) {// read by lines
+    CYAN("%s", msg);
     send(c_sock, msg, strlen(msg), 0);
   }
 
