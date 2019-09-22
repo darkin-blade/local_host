@@ -86,14 +86,15 @@ void send_file()
 {
   int is_html = 0;
   if (strcmp(file, "/") == 0) {
-    sprintf(file, "test.html");
+    sprintf(file, "index.html");
     is_html = 1;
   } else {
     sprintf(file, "%s", file + 1);// skip `/`
   }
 
   FILE *fp = fopen(file, "r");
-  if (is_html == 1) {
+  if (1 == 1) {
+    // count file length
     int file_len = 0;
     while (fgets(msg, 1000, fp)) {// read by lines
       file_len += strlen(msg);
@@ -114,7 +115,7 @@ void send_file()
     while (fgets(msg, 1000, fp)) {// read by lines
       send(c_sock, msg, strlen(msg), 0);
     }
-  } else {
+  } else if (is_html == 0) {
     while (fgets(msg, 1000, fp)) {// read by lines
       send(c_sock, msg, strlen(msg), 0);
     }
