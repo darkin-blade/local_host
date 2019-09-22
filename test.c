@@ -76,5 +76,6 @@ void send_file()
       "Content-Length: %d\n\n", strlen(msg));
       
   send(c_socket, head, strlen(head), 0);
-  send(c_socket, msg, strlen(msg), 0);
+  send(c_socket, msg, 100, 0);
+  send(c_socket, msg + 100, strlen(msg) - 100, 0);
 }

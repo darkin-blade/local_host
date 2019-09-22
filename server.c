@@ -67,6 +67,7 @@ void init_server()
 
 void read_request()
 {
+  return;
   int buf_len = strlen(buf);
   int i = 0;
   for (i = 0; i < buf_len; i ++) {
@@ -96,8 +97,9 @@ void send_file()
   while (fgets(msg + strlen(msg), 1000, fp)) {// read by lines
     ;
   }
-  send(c_sock, head, strlen(head), 0);
-  send(c_sock, msg, file_len, 0);
+  // send(c_sock, head, strlen(head), 0);
+  // send(c_sock, msg, file_len, 0);
+  send(c_sock, strcat(head, msg), strlen(head) + file_len, 0);
   CYAN("%d %d", file_len, strlen(msg));
   fclose(fp);
 }
