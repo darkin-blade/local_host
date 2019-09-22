@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <string.h>
 #include <stdlib.h>
+
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -103,10 +105,8 @@ void send_file()
   }
 
   // count file length
-  FILE *fp = fopen(file, "rb");
-  fseek(fp, 0, SEEK_END);
-  int file_len = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
+  int fd = open(file, O_RDONLY);
+  int file_len = lseek(fd, 0, SEEK_END);
 
   // send http header
   if (strcmp(type, ".html") == 0) {
@@ -133,40 +133,19 @@ void send_file()
   send(c_sock, head, strlen(head), 0);
 
   // send file content
-  fseek(fp, 0, SEEK_SET);
+  lseek(fd, 0, SEEK_SET);
   memset(msg, 0, sizeof(msg));
 
-  if (1) {
-    int delta = 0;
-    while (fread(msg, 1024, 1, fp)) {// read by lines
-      send(c_sock, msg, strlen(msg), 0);
-      delta += strlen(msg);
-    }
-    send(c_sock, msg, strlen(msg), 0);// TODO
+  int delta = 0;
+  while (delta < file_len) {// read by lines
+    memset(msg, 0, 4096);
+    read(fd, msg, 1024);
     delta += strlen(msg);
-    CYAN("%s %d %d", file, delta, file_len);
-  } else {
-    // int delta = 0;
-    // while (file_len > 1024) {
-    //   delta = fread(msg, 1024, 1, fp);
-    //   if (delta == 0) {
-    //     fclose(fp);
-    //     return;
-    //   }
-    //   send_helper(msg, delta);
-    //   file_len -= delta;
-    // }
-    // if (file_len > 0) {
-    //   delta = fread(msg, 1024, 1, fp);
-    //   if (delta == 0) {
-    //     fclose(fp);
-    //     return;
-    //   }
-    // }
-    // send_helper(msg, delta);
+    send(c_sock, msg, strlen(msg), 0);
   }
+  CYAN("%s %d %d", file, delta, file_len);
 
-  fclose(fp);
+  close(fd);
 }
 
 void send_helper(char *content, int size)
