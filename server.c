@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
@@ -80,7 +81,6 @@ void send_file()
   while (fgets(msg, 1000, fp)) {// read by lines
     file_len += strlen(msg);
   }
-  close(fp);
 
   // send http header
   sprintf(head, 
@@ -89,11 +89,15 @@ void send_file()
       "Content-Length: %d\n"
       "\n", file_len
       );
-  send(c_sock, head, strlen(head), 0);
 
   // send file content
-  fp = fopen("test.html", "r");
-    while (fgets(msg, 1000, fp)) {// read by lines
-    send(c_sock, msg, strlen(msg), 0);
+  CYAN("%d", fseek(fp, 0, SEEK_SET));
+  memset(msg, 0, sizeof(msg));
+  while (fgets(msg + strlen(msg), 1000, fp)) {// read by lines
+    ;
   }
+  send(c_sock, head, strlen(head), 0);
+  send(c_sock, msg, file_len, 0);
+  CYAN("%d %d", file_len, strlen(msg));
+  fclose(fp);
 }

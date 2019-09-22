@@ -14,9 +14,10 @@ struct sockaddr_in s_addr;
 int s_socket;
 int c_socket;
 
-char buf[4096];
-char msg[4096];
-char head[1024];
+char buf[4096];// user agent
+char msg[4096];// file content
+char head[1024];// http header
+char file[128];// the file requested
 
 void init_server();
 void read_request();
@@ -57,7 +58,11 @@ void init_server()
 
 void read_request()
 {
-  ;
+  int buf_len = strlen(buf);
+  int i = 0;
+  for (i = 0; i < buf_len; i ++) {
+    ;
+  }
 }
 
 void send_file()
