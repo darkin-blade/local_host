@@ -88,18 +88,23 @@ void send_file()
     sprintf(file, "index.html");
   } else {
     sprintf(file, "%s", file + 1);// skip `/`
-    int request_len = strlen(file);
-    if (file[request_len - 3] == 'p' && file[request_len - 2] == 'n' && file[request_len - 1] == 'g') {
-      is_html = 0;
-    }
+    // int request_len = strlen(file);
+    // if (file[request_len - 3] == 'p' && file[request_len - 2] == 'n' && file[request_len - 1] == 'g') {
+    //   is_html = 0;
+    // }
   }
 
-  FILE *fp = fopen(file, "r");
+  FILE *fp = fopen(file, "rb");
   // count file length
   int file_len = 0;
+  fseek(fp, 0, SEEK_END);
+  int temp_len = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
   while (fgets(msg, 1000, fp)) {// read by lines
     file_len += strlen(msg);
   }
+  CYAN("%s %d %d", file, file_len, temp_len);
+  // file_len = temp_len;// TODO
 
   // send http header
   if (is_html == 1) {
@@ -116,7 +121,6 @@ void send_file()
         "Content-Length: %d\n"
         "\n", file_len
         );
-    CYAN("%s", file);
   }
 
   // send file content
