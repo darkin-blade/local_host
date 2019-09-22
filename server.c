@@ -32,11 +32,11 @@ int main()
 
   while (1) {
     int c_sock = accept(s_sock, (struct sockaddr *)&c_addr, &c_addr_size);
-    CYAN("%d", c_sock);
 
     if (c_sock != -1) {
       int nread = recv(c_sock, buf, sizeof(buf), 0);
       read_request();// TODO
+
       CYAN("%d", nread);
       CYAN("%s", buf);
 
@@ -45,6 +45,7 @@ int main()
     }
 
   }
+
   close(s_sock);
 
   return 0;
@@ -83,13 +84,15 @@ void send_file()
       "Content-Type: text/html\n"
       // "Content-Length: %d\n"
       "\n"
-      // , (int)strlen(msg)
+      // , strlen(msg)
       );
   send(c_sock, head, strlen(head), 0);
 
   // send file content
   FILE *fp = fopen("test.html", "r");
   while (fgets(msg, 1000, fp)) {// read by lines
+    CYAN("%s", msg);
+
     send(c_sock, msg, strlen(msg), 0);
   }
 }

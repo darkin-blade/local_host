@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
 #define CYAN(format, ...) \
   printf("\033[1;36m" format "\33[0m\n", ## __VA_ARGS__)
@@ -27,8 +28,8 @@ int main() {
   int res, fd = socket(AF_INET, SOCK_STREAM, 0);
   assert(fd != -1);
   servaddr.sin_family = AF_INET;
-  servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port = htons(8898);
+  servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  servaddr.sin_port = htons(8000);
 
   res = bind(fd, (struct sockaddr*)&servaddr, sizeof(servaddr));
   if (res == -1) { perror("cannot bind"); exit(-1); }
