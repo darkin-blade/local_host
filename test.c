@@ -23,7 +23,8 @@ void init_server();
 void read_request();
 void send_file();
 
-int main() {
+int main()
+{
   init_server();
 
   while (1) {

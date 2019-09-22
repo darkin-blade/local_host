@@ -31,8 +31,7 @@ int main()
   init_server();
 
   while (1) {
-    int c_sock = accept(s_sock, NULL, NULL);
-
+    c_sock = accept(s_sock, NULL, NULL);
     if (c_sock != -1) {
       int nread = recv(c_sock, buf, sizeof(buf), 0);
       read_request();// TODO
@@ -94,12 +93,9 @@ void send_file()
   // send file content
   CYAN("%d", fseek(fp, 0, SEEK_SET));
   memset(msg, 0, sizeof(msg));
-  while (fgets(msg + strlen(msg), 1000, fp)) {// read by lines
-    ;
-  }
   send(c_sock, head, strlen(head), 0);
-  send(c_sock, msg, file_len, 0);
-
-  CYAN("%d %d", file_len, strlen(msg));
+  while (fgets(msg, 1000, fp)) {// read by lines
+    send(c_sock, msg, strlen(msg), 0);
+  }
   fclose(fp);
 }
