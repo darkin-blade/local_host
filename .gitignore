@@ -2,3 +2,6 @@ assets/
 output/
 jq/
 s
+*.js
+*.html
+*.css
