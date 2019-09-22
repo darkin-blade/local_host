@@ -88,49 +88,33 @@ void send_file()
     sprintf(file, "test.html");
   } else {
     sprintf(file, "%s", file + 1);// skip `/`
-    int request_len = strlen(file);
-    if (file[request_len - 3] == 'p' && file[request_len - 2] == 'n' && file[request_len - 1] == 'g') {
-      is_html = 0;
-    }
   }
 
   // count file length
   FILE *fp = fopen(file, "rb");
   fseek(fp, 0, SEEK_END);
-  int file_len = 0;
-  int temp_len = ftell(fp);
+  int file_len = ftell(fp);
   fseek(fp, 0, SEEK_SET);
-  while (fgets(msg, 1000, fp)) {// read by lines
-    file_len += strlen(msg);
-  }
-  CYAN("%s %d %d", file, file_len, temp_len);
-  // file_len = temp_len;// TODO
+  CYAN("%s %d %d", file, file_len, file_len);
 
   // send http header
-  if (is_html == 1) {
-    sprintf(head, 
-        "HTTP/1.1 200 OK\n"
-        "Content-Type: text/html\n"
-        "Content-Length: %d\n"
-        "\n", file_len
-        );
-  } else {
-    sprintf(head, 
-        "HTTP/1.1 200 OK\n"
-        "Content-Type: image/png\n"
-        "Content-Length: %d\n"
-        "\n", file_len
-        );
-  }
+  sprintf(head, 
+      "HTTP/1.1 200 OK\n"
+      // "Content-Type: text/html\n"
+      "Content-Type: image/x-icon\n"
+      "Content-Length: %d\n"
+      "\n", file_len
+      );
 
   // send file content
   fseek(fp, 0, SEEK_SET);
   memset(msg, 0, sizeof(msg));
   send(c_sock, head, strlen(head), 0);
   while (fread(msg, 1024, 1, fp)) {// read by lines
-    CYAN("%s", msg);
     send(c_sock, msg, strlen(msg), 0);
   }
+  send(c_sock, msg, strlen(msg), 0);// TODO
 
   fclose(fp);
 }
+
