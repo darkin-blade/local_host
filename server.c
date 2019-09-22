@@ -21,10 +21,12 @@ char buf[4096];// user agent
 char msg[4096];// file content
 char head[1024];// http header
 char file[128];// which file requested
+char type[128];// file format
 
 void init_server();
 void read_request();
 void send_file();
+void send_helper(char *, int);
 
 int main() 
 {
@@ -86,8 +88,18 @@ void send_file()
   int is_html = 1;
   if (strcmp(file, "/") == 0) {
     sprintf(file, "test.html");
+    sprintf(type, ".html");
   } else {
     sprintf(file, "%s", file + 1);// skip `/`
+    int i = 0, j = 0;
+    for (i = strlen(file); file[i] != '.'; i --) {// find `.`
+      ;
+    }
+    for (j = 0; i < strlen(file); i ++, j ++) {
+      type[j] = file[i];
+    }
+    type[j] = '\0';
+    CYAN("%s %s", file, type);
   }
 
   // count file length
@@ -98,23 +110,68 @@ void send_file()
   CYAN("%s %d %d", file, file_len, file_len);
 
   // send http header
+  if (strcmp(type, ".html") == 0) {
+    sprintf(type, "text/html");
+  } else if (strcmp(type, ".js") == 0) {
+    sprintf(type, "application/x-javascript");
+  } else if (strcmp(type, ".css") == 0) {
+    sprintf(type, "text/css");
+  } else if (strcmp(type, ".png") == 0) {
+    sprintf(type, "image/png");
+  } else if (strcmp(type, ".ico") == 0) {
+    sprintf(type, "image/x-ico");
+  } else if (strcmp(type, ".json") == 0) {
+    sprintf(type, "application/x-javascript");
+  } else {
+    sprintf(type, "application/octet-stream");
+  }
   sprintf(head, 
-      "HTTP/1.1 200 OK\n"
-      // "Content-Type: text/html\n"
-      "Content-Type: image/x-icon\n"
-      "Content-Length: %d\n"
-      "\n", file_len
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: %s\r\n"
+      "Content-Length: %d\r\n"
+      "\r\n", type, file_len
       );
+  send(c_sock, head, strlen(head), 0);
 
   // send file content
   fseek(fp, 0, SEEK_SET);
   memset(msg, 0, sizeof(msg));
-  send(c_sock, head, strlen(head), 0);
-  while (fread(msg, 1024, 1, fp)) {// read by lines
-    send(c_sock, msg, strlen(msg), 0);
+
+  if (1) {
+    while (fread(msg, 1024, 1, fp)) {// read by lines
+      send(c_sock, msg, strlen(msg), 0);
+    }
+    send(c_sock, msg, strlen(msg), 0);// TODO
+  } else {
+    int delta = 0;
+    while (file_len > 1024) {
+      delta = fread(msg, 1024, 1, fp);
+      if (delta == 0) {
+        fclose(fp);
+        return;
+      }
+      send_helper(msg, delta);
+      file_len -= delta;
+    }
+    if (file_len > 0) {
+      delta = fread(msg, 1024, 1, fp);
+      if (delta == 0) {
+        fclose(fp);
+        return;
+      }
+    }
+    send_helper(msg, delta);
   }
-  send(c_sock, msg, strlen(msg), 0);// TODO
 
   fclose(fp);
 }
 
+void send_helper(char *content, int size)
+{
+  while (size > 0) {
+    int delta = send(c_sock, content, size, 0);
+    if (delta <= 0) return;
+    size -= delta;
+    content += delta;
+  }
+}

@@ -18,10 +18,11 @@ int main()
   FILE *fp = fopen("index.html", "rb");
 
   fseek(fp, 0, SEEK_SET);
-  while (fread(content, 1024, 1, fp)) {
-    CYAN("%s", content);
+  int delta;
+  while (delta = fread(content, 1024, 1, fp)) {
+    CYAN("%d %s", delta, content);
   }
-    CYAN("%s", content);
+  CYAN("%d %s", delta, content);
 
   fclose(fp);
 
