@@ -13,35 +13,26 @@
 struct sockaddr_in s_addr;
 char buf[4096];
 char head[1024];
-const char *msg =
-  "<!DOCTYPE html>\n"
-  "<html><body><h1>Hello, World!</h1></body></html>\n";
+char msg[4096];
 
-  int s_socket;
+int s_socket;
+int c_socket;
 
 void init_server();
 void read_request();
 void send_file();
 
 int main() {
-  CYAN("%d\n", strlen(msg));
-  sprintf(head, 
-      "HTTP/1.1 200 OK\n"
-      "Content-Type: text/html\n\n"
-      "Content-Length: %d\n\n", 1000
-      );
-  CYAN("%s\n", strcat(head, msg));
-
   init_server();
 
   while (1) {
-    int conn = accept(s_socket, NULL, NULL);
-    if (conn != -1) {
-      int nread = recv(conn, buf, sizeof(buf), 0);
-      // send(conn, strcat(head, msg), strlen(head) + strlen(msg), 0);
-      send(conn, head, strlen(head), 0);
-      send(conn, msg, strlen(msg), 0);
-      close(conn);
+    c_socket = accept(s_socket, NULL, NULL);
+    if (c_socket != -1) {
+      int nread = recv(c_socket, buf, sizeof(buf), 0);
+      CYAN("%d\n%s", nread, buf);
+
+      send_file();
+      close(c_socket);
     }
   }
   close(s_socket);
@@ -70,5 +61,13 @@ void read_request()
 
 void send_file()
 {
-  ;
+  sprintf(msg,
+      "<!DOCTYPE html>\n"
+      "<html><body><h1>Hello, World!</h1></body></html>\n");
+  sprintf(head, 
+      "HTTP/1.1 200 OK\n"
+      "Content-Type: text/html\n"
+      "Content-Length: %d\n\n", strlen(msg));
+  send(c_socket, head, strlen(head), 0);
+  send(c_socket, msg, strlen(msg), 0);
 }
