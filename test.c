@@ -69,7 +69,7 @@ void send_file()
 {
   sprintf(msg,
       "<!DOCTYPE html>\n"
-      "<html><body><h1>Hello, World!</h1></body></html>\n");
+      "<html>\n\n<body>\n\n<h1>\nHello, World!\n\n</h1>\n\n</body>\n\n\n</html>\n");
   sprintf(head, 
       "HTTP/1.1 200 OK\n"
       // "Content-Type: text/html\n"
