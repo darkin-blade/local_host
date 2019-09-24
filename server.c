@@ -30,6 +30,9 @@ void read_request();
 void send_file();
 void send_helper(char *, int);
 
+// const char *rootDir = "/home/lynx/Computer_Networks/http";
+const char *rootDir = "/home/lynx/fuck_mount/QtProj/test2/http";
+
 int main() 
 {
   init_server();
@@ -40,8 +43,8 @@ int main()
       int nread = recv(c_sock, buf, sizeof(buf), 0);
       read_request();// TODO
 
-      // CYAN("%d", nread);
-      // CYAN("%s", buf);
+      CYAN("%d", nread);
+      CYAN("%s", buf);
 
       send_file();
       close(c_sock);
@@ -89,10 +92,12 @@ void send_file()
 {
   int is_html = 1;
   if (strcmp(file, "/") == 0) {
-    sprintf(file, "index.html");
+    sprintf(file, "%s/index.html", rootDir);
     sprintf(type, ".html");
   } else {
-    sprintf(file, "%s", file + 1);// skip `/`
+    char temp[128];
+    strcpy(temp, file + 1);// skip `/`
+    sprintf(file, "%s/%s", rootDir, temp);
     int i = 0, j = 0;
     for (i = strlen(file); file[i] != '.'; i --) {// find `.`
       ;
@@ -101,8 +106,8 @@ void send_file()
       type[j] = file[i];
     }
     type[j] = '\0';
-    CYAN("%s %s", file, type);
   }
+  CYAN("%s %d: %s %s", __func__, __LINE__, file, type);
 
   // count file length
   int fd = open(file, O_RDONLY);
