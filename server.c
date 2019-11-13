@@ -25,17 +25,17 @@ char head[1024];// http header
 char file[128];// which file requested
 char type[128];// file format
 
-void init_server();
+void init_server(int argc, char *argv[]);
 void read_request();
 void send_file();
 void send_helper(char *, int);
 
 // const char *rootDir = "/home/lynx/Computer_Networks/http";
-const char *rootDir = "/home/lynx/fuck_mount/QtProj/test2/http";
+char rootDir[128] = "/home/lynx/fuck_mount/idea/hw3/src/main/resources/templates";
 
-int main() 
+int main(int argc, char *argv[]) 
 {
-  init_server();
+  init_server(argc, argv);
 
   while (1) {
     c_sock = accept(s_sock, NULL, NULL);
@@ -55,8 +55,12 @@ int main()
   return 0;
 }
 
-void init_server() 
+void init_server(int argc, char *argv[]) 
 {
+  if (argc > 1) {// give a specific path
+    sprintf(rootDir, "%s", argv[1]);
+  }
+
   s_sock = socket(AF_INET, SOCK_STREAM, 0);
   assert(s_sock != -1);
   s_addr.sin_family = AF_INET;
