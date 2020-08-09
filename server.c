@@ -130,17 +130,33 @@ void send_file()
     sprintf(type, "image/x-ico");
   } else if (strcmp(type, ".json") == 0) {
     sprintf(type, "application/x-javascript");
+  } else if (strcmp(type, ".mp4") == 0) {
+    sprintf(type, "video/mp4");
   } else {
     sprintf(type, "application/octet-stream");
   }
-  sprintf(head, 
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type: %s\r\n"
-      "Content-Length: %d\r\n"
-      "\r\n"
-      , type
-      , file_len
-      );
+  if (strcmp(type, "video/mp4") == 0) {
+    sprintf(head, 
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Range: bytes 0-%d/%d\r\n"
+        "Content-Length: %d\r\n"
+        "Accept-Ranges: bytes\r\n"
+        "\r\n"
+        , type
+        , file_len - 1, file_len
+        , file_len
+        );
+  } else {
+    sprintf(head, 
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Length: %d\r\n"
+        "\r\n"
+        , type
+        , file_len
+        );
+  }
   send(c_sock, head, strlen(head), 0);
 
   // send file content
