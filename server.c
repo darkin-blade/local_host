@@ -31,7 +31,7 @@ void send_file();
 void send_helper(char *, int);
 
 // const char *rootDir = "/home/lynx/Computer_Networks/http";
-char rootDir[128] = "/home/lynx/fuck_mount/idea/hw3/src/main/resources/templates";
+char rootDir[128] = "/home/lynx/study/compiler/复习";
 
 int main(int argc, char *argv[]) 
 {

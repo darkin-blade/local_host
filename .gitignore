@@ -2,6 +2,7 @@ assets/
 output/
 jq/
 s
+server
 *.ico
 *.js
 *.html
