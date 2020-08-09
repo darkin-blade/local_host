@@ -10,6 +10,10 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#define GREEN(format, ...) \
+  printf("\033[1;32m" format "\33[0m\n", ## __VA_ARGS__)
+#define MAGENTA(format, ...) \
+  printf("\033[1;35m" format "\33[0m\n", ## __VA_ARGS__)
 #define CYAN(format, ...) \
   printf("\033[1;36m" format "\33[0m\n", ## __VA_ARGS__)
 
@@ -19,11 +23,19 @@ socklen_t c_addr_size;
 int s_sock;// server socket
 int c_sock;// clinet socket
 
-char buf[4096];// user agent
-char msg[4096];// file content
-char head[1024];// http header
-char file[128];// which file requested
-char type[128];// file format
+char request_header[4096];// user agent
+char file_requested[128];// which file requested
+// range = end - start
+int range_start;
+int range_end;
+
+char response_header[1024];// http response header
+char file_content[4096];// file content
+char content_type[128];// content type
+// content range = end - start
+int content_start;
+int content_end;
+int content_total;
 
 void init_server(int argc, char *argv[]);
 void read_request();
@@ -42,11 +54,11 @@ int main(int argc, char *argv[])
   while (1) {
     c_sock = accept(s_sock, NULL, NULL);
     if (c_sock != -1) {
-      int nread = recv(c_sock, buf, sizeof(buf), 0);
+      int nread = recv(c_sock, request_header, sizeof(request_header), 0);
       read_request();// TODO
 
       // CYAN("%d", nread);
-      CYAN("%s", buf);
+      CYAN("%s", request_header);
 
       send_file();
       close(c_sock);
@@ -68,7 +80,7 @@ void init_server(int argc, char *argv[])
       }
     }
   }
-  CYAN("%s:%d", ip_addr, port_num);
+  GREEN("%s:%d", ip_addr, port_num);
 
   s_sock = socket(AF_INET, SOCK_STREAM, 0);
   assert(s_sock != -1);
@@ -85,101 +97,154 @@ void init_server(int argc, char *argv[])
 }
 
 void read_request()
-{// TODO 处理更多参数
-  int buf_len = strlen(buf);
-  int i = 0, j = 0;
-  for (i = 0; i < buf_len - 10; i ++) {
-    if (buf[i] == 'G' && buf[i + 1] == 'E' && buf[i + 2] == 'T') {// `GET` keyword
-      i = i + 4;// skip space
-      while (buf[i] != ' ') {
-        file[j] = buf[i];
+{
+  int i, j;
+  int header_len = strlen(request_header);
+
+  // 解析请求的文件
+  for (i = 0, j = 0; i < header_len - 2; i ++) {
+    if (request_header[i] == 'G' &&
+        request_header[i + 1] == 'E' &&
+        request_header[i + 2] == 'T') {// `GET` keyword
+      i = i + 4;// skip `GET `
+      while (request_header[i] != ' ') {
+        file_requested[j] = request_header[i];
         j ++, i ++;
       }
-      file[j] = '\0';
-      return;
+      file_requested[j] = '\0';
+    }
+  }
+
+  // 解析请求文件的格式
+  int filename_len = strlen(file_requested);
+  if (strcmp(file_requested, "/") == 0) {
+    sprintf(file_requested, "%s/index.html", rootDir);
+    sprintf(content_type, ".html");
+  } else {
+    char temp[128];
+    strcpy(temp, file_requested + 1);// skip `/`
+    sprintf(file_requested, "%s/%s", rootDir, temp);
+    int i = 0, j = 0;
+    for (i = filename_len; file_requested[i] != '.'; i --) {// find `.`
+      ;
+    }
+    for (j = 0; i < filename_len; i ++, j ++) {
+      content_type[j] = file_requested[i];
+    }
+    content_type[j] = '\0';
+  }
+
+  // 解析请求文件的范围
+  range_start = -1;
+  range_end = -1;
+  for (i = 0; i < header_len - 4; i ++) {
+    if (request_header[i] == 'R' &&
+        request_header[i + 1] == 'a' &&
+        request_header[i + 2] == 'n' &&
+        request_header[i + 3] == 'g' &&
+        request_header[i + 4] == 'e') {
+      i += 13;// skip `Range: bytes=`
+      range_start = 0;
+      while (request_header[i] >= '0' && request_header[i] <= '9') {
+        range_start = range_start * 10 + request_header[i] - '0';
+        i ++;
+      }
+      assert(request_header[i] == '-');
+      i ++;
+      if (request_header[i] >= '0' && request_header[i] <= '9') {
+        range_end = 0;
+        while (request_header[i] >= '0' && request_header[i] <= '9') {
+          range_end = range_end * 10 + request_header[i] - '0';
+          i ++;
+        }
+      } else {
+        // 直至文件末尾
+        assert(range_end == -1);
+      }
     }
   }
 }
 
 void send_file()
 {
-  int is_html = 1;
-  if (strcmp(file, "/") == 0) {
-    sprintf(file, "%s/index.html", rootDir);
-    sprintf(type, ".html");
-  } else {
-    char temp[128];
-    strcpy(temp, file + 1);// skip `/`
-    sprintf(file, "%s/%s", rootDir, temp);
-    int i = 0, j = 0;
-    for (i = strlen(file); file[i] != '.'; i --) {// find `.`
-      ;
-    }
-    for (j = 0; i < strlen(file); i ++, j ++) {
-      type[j] = file[i];
-    }
-    type[j] = '\0';
-  }
-  // CYAN("%s %d: %s %s", __func__, __LINE__, file, type);
+  // CYAN("%s %d: %s %s", __func__, __LINE__, file_requested, content_type);
 
-  // count file length
-  int fd = open(file, O_RDONLY);
-  int file_len = lseek(fd, 0, SEEK_END);
+  int partial_content = 0;
+  int fd = open(file_requested, O_RDONLY);
+  content_total = lseek(fd, 0, SEEK_END);// 计算文件总大小
+  int range_total;// 传输部分的总大小
+
+  GREEN("[%s]", content_type);
 
   // send http header
-  if (strcmp(type, ".html") == 0) {
-    sprintf(type, "text/html");
-  } else if (strcmp(type, ".js") == 0) {
-    sprintf(type, "application/x-javascript");
-  } else if (strcmp(type, ".css") == 0) {
-    sprintf(type, "text/css");
-  } else if (strcmp(type, ".png") == 0) {
-    sprintf(type, "image/png");
-  } else if (strcmp(type, ".ico") == 0) {
-    sprintf(type, "image/x-ico");
-  } else if (strcmp(type, ".json") == 0) {
-    sprintf(type, "application/x-javascript");
-  } else if (strcmp(type, ".mp4") == 0) {
-    sprintf(type, "video/mp4");
+  if (strcmp(content_type, ".html") == 0) {
+    sprintf(content_type, "text/html");
+  } else if (strcmp(content_type, ".js") == 0) {
+    sprintf(content_type, "application/x-javascript");
+  } else if (strcmp(content_type, ".css") == 0) {
+    sprintf(content_type, "text/css");
+  } else if (strcmp(content_type, ".png") == 0) {
+    sprintf(content_type, "image/png");
+  } else if (strcmp(content_type, ".ico") == 0) {
+    sprintf(content_type, "image/x-ico");
+  } else if (strcmp(content_type, ".json") == 0) {
+    sprintf(content_type, "application/x-javascript");
+  } else if (strcmp(content_type, ".mp4") == 0) {
+    sprintf(content_type, "video/mp4");
+    assert(range_start != -1);
+    partial_content = 1;// 断点续传
   } else {
-    sprintf(type, "application/octet-stream");
+    sprintf(content_type, "application/octet-stream");
   }
-  if (strcmp(type, "video/mp4") == 100000) {
-    sprintf(head, 
-        "HTTP/1.1 200 OK\r\n"
+  if (partial_content) {// 断点续传协议
+    // 计算传输范围
+    if (range_end == -1) {
+      // 直至文件末尾
+      range_end = content_total - 1;
+    }
+    range_total = range_end - range_start;
+    sprintf(response_header, 
+        "HTTP/1.1 206 Partial Content\r\n"
         "Content-Type: %s\r\n"
-        "Content-Range: bytes 0-%d/%d\r\n"
+        "Content-Range: bytes %d-%d/%d\r\n"
         "Content-Length: %d\r\n"
         "Accept-Ranges: bytes\r\n"
         "\r\n"
-        , type
-        , file_len - 1, file_len
-        , file_len
+        , content_type
+        , range_start, range_end, content_total
+        , range_total
         );
+    // 发送头部
+    send(c_sock, response_header, strlen(response_header), 0);
+    // 设置文件偏移
+    lseek(fd, range_start, SEEK_SET);
+    memset(file_content, 0, sizeof(file_content));
   } else {
-    sprintf(head, 
+    // 传输全部文件
+    range_total = content_total;
+    sprintf(response_header, 
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: %s\r\n"
         "Content-Length: %d\r\n"
         "\r\n"
-        , type
-        , file_len
+        , content_type
+        , range_total
         );
-  }
-  send(c_sock, head, strlen(head), 0);
+    send(c_sock, response_header, strlen(response_header), 0);
 
-  // send file content
-  lseek(fd, 0, SEEK_SET);
-  memset(msg, 0, sizeof(msg));
+    lseek(fd, 0, SEEK_SET);
+    memset(file_content, 0, sizeof(file_content));
+  }
+  MAGENTA("%s", response_header);
 
   int delta = 0;
-  while (delta < file_len) {// read by lines
-    memset(msg, 0, 4096);
-    int size = read(fd, msg, 1024);
+  while (delta < range_total) {// TODO
+    memset(file_content, 0, 4096);
+    int size = read(fd, file_content, 1024);
     delta += size;
-    // send(c_sock, msg, strlen(msg), 0);
-    send_helper(msg, size);
-    // CYAN("%d %d", delta, file_len);
+    // send(c_sock, file_content, strlen(file_content), 0);
+    send_helper(file_content, size);
+    // CYAN("%d %d", delta, range_total);
   }
 
   close(fd);
