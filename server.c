@@ -32,6 +32,8 @@ void send_helper(char *, int);
 
 // const char *rootDir = "/home/lynx/Computer_Networks/http";
 char rootDir[128] = "/home/lynx/study/compiler/复习";
+char ip_addr[32] = "127.0.0.1";
+int port_num = 8000;
 
 int main(int argc, char *argv[]) 
 {
@@ -43,7 +45,7 @@ int main(int argc, char *argv[])
       int nread = recv(c_sock, buf, sizeof(buf), 0);
       read_request();// TODO
 
-      CYAN("%d", nread);
+      // CYAN("%d", nread);
       CYAN("%s", buf);
 
       send_file();
@@ -58,14 +60,21 @@ int main(int argc, char *argv[])
 void init_server(int argc, char *argv[]) 
 {
   if (argc > 1) {// give a specific path
-    sprintf(rootDir, "%s", argv[1]);
+    sprintf(ip_addr, "%s", argv[1]);
+    if (argc > 2) {
+      port_num = atoi(argv[2]);
+      if (argc > 3) {
+        sprintf(rootDir, "%s", argv[3]);
+      }
+    }
   }
+  CYAN("%s:%d", ip_addr, port_num);
 
   s_sock = socket(AF_INET, SOCK_STREAM, 0);
   assert(s_sock != -1);
   s_addr.sin_family = AF_INET;
-  s_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  s_addr.sin_port = htons(8000);
+  s_addr.sin_addr.s_addr = inet_addr(ip_addr);
+  s_addr.sin_port = htons(port_num);
 
   int res = bind(s_sock, (struct sockaddr*)&s_addr, sizeof(s_addr));
   if (res == -1) { perror("cannot bind"); exit(-1); }
@@ -76,7 +85,7 @@ void init_server(int argc, char *argv[])
 }
 
 void read_request()
-{
+{// TODO 处理更多参数
   int buf_len = strlen(buf);
   int i = 0, j = 0;
   for (i = 0; i < buf_len - 10; i ++) {
@@ -111,7 +120,7 @@ void send_file()
     }
     type[j] = '\0';
   }
-  CYAN("%s %d: %s %s", __func__, __LINE__, file, type);
+  // CYAN("%s %d: %s %s", __func__, __LINE__, file, type);
 
   // count file length
   int fd = open(file, O_RDONLY);
@@ -135,7 +144,7 @@ void send_file()
   } else {
     sprintf(type, "application/octet-stream");
   }
-  if (strcmp(type, "video/mp4") == 0) {
+  if (strcmp(type, "video/mp4") == 100000) {
     sprintf(head, 
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: %s\r\n"
@@ -170,7 +179,7 @@ void send_file()
     delta += size;
     // send(c_sock, msg, strlen(msg), 0);
     send_helper(msg, size);
-    CYAN("%d %d", delta, file_len);
+    // CYAN("%d %d", delta, file_len);
   }
 
   close(fd);

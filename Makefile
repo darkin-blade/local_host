@@ -1,3 +1,3 @@
 run:
 	gcc server.c -o server
-	./server
+	./server 127.0.0.1 8000
