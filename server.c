@@ -55,10 +55,11 @@ int main(int argc, char *argv[])
     c_sock = accept(s_sock, NULL, NULL);
     if (c_sock != -1) {
       int nread = recv(c_sock, request_header, sizeof(request_header), 0);
+      CYAN("%s", request_header);
+      // CYAN("%d", nread);
+
       read_request();// TODO
 
-      // CYAN("%d", nread);
-      CYAN("%s", request_header);
 
       send_file();
       close(c_sock);
@@ -100,6 +101,8 @@ void read_request()
 {
   int i, j;
   int header_len = strlen(request_header);
+  // memset(file_requested, 0, sizeof(file_requested));
+  // memset(content_type, 0, sizeof(content_type));
 
   // 解析请求的文件
   for (i = 0, j = 0; i < header_len - 2; i ++) {
@@ -116,7 +119,6 @@ void read_request()
   }
 
   // 解析请求文件的格式
-  int filename_len = strlen(file_requested);
   if (strcmp(file_requested, "/") == 0) {
     sprintf(file_requested, "%s/index.html", rootDir);
     sprintf(content_type, ".html");
@@ -124,15 +126,18 @@ void read_request()
     char temp[128];
     strcpy(temp, file_requested + 1);// skip `/`
     sprintf(file_requested, "%s/%s", rootDir, temp);
-    int i = 0, j = 0;
+    int filename_len = strlen(file_requested);
     for (i = filename_len; file_requested[i] != '.'; i --) {// find `.`
-      ;
+      // do nothing
     }
     for (j = 0; i < filename_len; i ++, j ++) {
       content_type[j] = file_requested[i];
     }
     content_type[j] = '\0';
   }
+
+  GREEN("[%s]", file_requested);
+  GREEN("[%s]", content_type);
 
   // 解析请求文件的范围
   range_start = -1;
@@ -173,8 +178,6 @@ void send_file()
   int fd = open(file_requested, O_RDONLY);
   content_total = lseek(fd, 0, SEEK_END);// 计算文件总大小
   int range_total;// 传输部分的总大小
-
-  GREEN("[%s]", content_type);
 
   // send http header
   if (strcmp(content_type, ".html") == 0) {
