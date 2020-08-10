@@ -1,15 +1,18 @@
+#include <assert.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
 
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#define RED(format, ...) \
+  printf("\033[1;31m" format "\33[0m\n", ## __VA_ARGS__)
 #define GREEN(format, ...) \
   printf("\033[1;32m" format "\33[0m\n", ## __VA_ARGS__)
 #define MAGENTA(format, ...) \
@@ -37,36 +40,51 @@ int content_start;
 int content_end;
 int content_total;
 
+// 线程
+pthread_t send_thread;// 传输文件的线程
+
 void init_server(int argc, char *argv[]);
 void read_request();
 void send_file();
 void send_helper(char *, int);
 
-// const char *rootDir = "/home/lynx/Computer_Networks/http";
-char rootDir[128] = "/home/lynx/study/compiler/复习";
+void sigpipe_handler();
+int my_min(int a, int b) {
+  if (a < b) return a;
+  return b;
+}
+
 char ip_addr[32] = "127.0.0.1";
 int port_num = 8000;
+char rootDir[128] = "/home/lynx/study/compiler/复习";
 
 int main(int argc, char *argv[]) 
 {
   init_server(argc, argv);
 
   while (1) {
-    c_sock = accept(s_sock, NULL, NULL);
+    int new_sock = accept(s_sock, NULL, NULL);// 接收新的请求
+    pthread_join(send_thread, NULL);
+
+    c_sock = new_sock;
     if (c_sock != -1) {
       int nread = recv(c_sock, request_header, sizeof(request_header), 0);
       CYAN("%s", request_header);
       // CYAN("%d", nread);
 
-      read_request();// TODO
+      read_request();
 
+      int thread_result = pthread_create(&send_thread, NULL, send_file, NULL);
+      if (thread_result) {
+        RED("Failed to create thread to send file");
+        send_file();// TODO
+      }
 
-      send_file();
-      close(c_sock);
+      // close(c_sock);// 关闭client
     }
   }
 
-  close(s_sock);
+  close(s_sock);// 关闭server
   return 0;
 }
 
@@ -95,6 +113,9 @@ void init_server(int argc, char *argv[])
   listen(s_sock, 10);// TODO
 
   c_addr_size = sizeof(c_addr);
+
+  // TODO 信号处理
+  signal(SIGPIPE, sigpipe_handler);
 }
 
 void read_request()
@@ -203,7 +224,7 @@ void send_file()
     // 计算传输范围
     if (range_end == -1) {
       // 直至文件末尾
-      range_end = content_total - 1;
+      range_end = my_min(content_total - 1, range_start + 1048576);// TODO
     }
     range_total = range_end - range_start;
     sprintf(response_header, 
@@ -241,16 +262,17 @@ void send_file()
   MAGENTA("%s", response_header);
 
   int delta = 0;
-  while (delta < range_total) {// TODO
+  while (delta < range_total) {
     memset(file_content, 0, 4096);
     int size = read(fd, file_content, 1024);
     delta += size;
     // send(c_sock, file_content, strlen(file_content), 0);
     send_helper(file_content, size);
-    // CYAN("%d %d", delta, range_total);
+    GREEN("%d/%d", delta, range_total);
   }
 
   close(fd);
+  close(c_sock);// 关闭client
 }
 
 void send_helper(char *content, int size)
@@ -261,4 +283,9 @@ void send_helper(char *content, int size)
     size -= delta;
     content += delta;
   }
+}
+
+void sigpipe_handler() {
+  pthread_cancel(send_thread);
+  // exit(1);
 }
