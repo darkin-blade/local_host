@@ -21,6 +21,8 @@
 #define CYAN(format, ...) \
   printf("\033[1;36m" format "\33[0m\n", ## __VA_ARGS__)
 
+const int VIDEO_SIZE = 4096;// 1048576
+
 struct sockaddr_in s_addr;
 struct sockaddr_in c_addr;
 socklen_t c_addr_size;
@@ -236,7 +238,7 @@ void send_file()
     // 计算传输范围
     if (range_end == -1) {
       // 直至文件末尾
-      range_end = my_min(content_total - 1, range_start + 1048576);// TODO
+      range_end = my_min(content_total - 1, range_start + VIDEO_SIZE);// TODO
     }
     range_total = range_end - range_start;
     sprintf(response_header, 
