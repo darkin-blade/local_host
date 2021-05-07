@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -202,6 +203,10 @@ void send_file()
 
   int partial_content = 0;
   int fd = open(file_requested, O_RDONLY);
+  extern int errno;// 查看文件打开失败时的错误原因
+  if (fd < 0) {
+    RED("[%d] %s", errno, file_requested);
+  }
   content_total = lseek(fd, 0, SEEK_END);// 计算文件总大小
   int range_total;// 传输部分的总大小
 
@@ -220,7 +225,9 @@ void send_file()
     sprintf(content_type, "application/x-javascript");
   } else if (strcmp(content_type, ".mp4") == 0) {
     sprintf(content_type, "video/mp4");
-    assert(range_start != -1);
+    if (range_start == -1) {
+      range_start = 0;// TODO
+    }
     partial_content = 1;// 断点续传
   } else {
     sprintf(content_type, "application/octet-stream");

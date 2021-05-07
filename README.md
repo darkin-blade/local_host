@@ -3,6 +3,7 @@
 ```bash
 gcc server.c -o server
 ./server
+./server 127.0.0.1 8000 /home/lynx/server
 ```
 
 在浏览器中打开`127.0.0.1:8000`(可改),默认加载`index.html`(对应`/`)
