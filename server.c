@@ -54,9 +54,9 @@ int my_min(int a, int b) {
   return b;
 }
 
-char ip_addr[32] = "127.0.0.1";
+char ip_addr[32] = "127.0.0.1";// 127.0.0.1
 int port_num = 8000;
-char rootDir[128] = "/home/lynx/study/compiler/复习";
+char rootDir[128] = "/home/lynx/darkin_blade/html_player";
 
 int main(int argc, char *argv[]) 
 {
@@ -107,6 +107,11 @@ void init_server(int argc, char *argv[])
   s_addr.sin_addr.s_addr = inet_addr(ip_addr);
   s_addr.sin_port = htons(port_num);
 
+  int reuse = 1;// 避免time wait
+  if (setsockopt(s_sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(int)) < 0) {
+    perror("setsockopt");
+    exit(-1);
+  }
   int res = bind(s_sock, (struct sockaddr*)&s_addr, sizeof(s_addr));
   if (res == -1) { perror("cannot bind"); exit(-1); }
 
