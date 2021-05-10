@@ -11,4 +11,3 @@ gcc server.c -o server
 # TODO
 
 - 外部链接
-- 立刻重用ip
