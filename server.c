@@ -175,7 +175,6 @@ void main_response()
 {
   // 获取文件全名
   strcpy(cur_dir, file_requested + 1);// skip 第一个 `/`
-  CYAN("%s %s", cur_dir, file_requested);
   sprintf(file_requested, "%s/%s", rootDir, cur_dir);
 
   // 判断file_requested的文件类型
@@ -377,7 +376,16 @@ void send_dir() {
   while (file_item = readdir(requested_dir)) {
     // 只显示前100个文件
     if (file_num > 100) break;
-    sprintf(link_item, "<a href=\"%s\">%s<a><br>\r\n", file_item->d_name, file_item->d_name);
+    switch (file_item->d_type) {
+      case DT_DIR:// 目录
+        sprintf(link_item, "<a href=\"%s/\">%s<a><br>\r\n", file_item->d_name, file_item->d_name);
+        break;
+      case DT_REG:// 普通文件
+        sprintf(link_item, "<a href=\"%s\">%s<a><br>\r\n", file_item->d_name, file_item->d_name);
+        break;
+      default:// TODO 不显示
+        break;
+    }
     strcat(file_content, link_item);
     file_num ++;
   }
