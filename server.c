@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 
 #define RED(format, ...) \
@@ -30,7 +32,7 @@ int s_sock;// server socket
 int c_sock;// clinet socket
 
 char request_header[4096];// user agent
-char file_requested[128];// which file requested
+char file_requested[256];// which file requested
 // range = end - start
 int range_start;
 int range_end;
@@ -48,8 +50,13 @@ pthread_t send_thread;// 传输文件的线程
 
 void init_server(int argc, char *argv[]);
 void read_request();
-void send_file();
+void main_response();
+void *thread_response(void *args);
 void send_helper(char *, int);
+
+// 传输不同类型的文件
+void send_file();// 普通类型的文件
+void send_dir();// 目录
 
 void sigpipe_handler();
 int my_min(int a, int b) {
@@ -77,10 +84,10 @@ int main(int argc, char *argv[])
 
       read_request();
 
-      int thread_result = pthread_create(&send_thread, NULL, send_file, NULL);
+      int thread_result = pthread_create(&send_thread, NULL, thread_response, NULL);
       if (thread_result) {
         RED("Failed to create thread to send file");
-        send_file();// TODO
+        main_response();// TODO
       }
 
       // close(c_sock);// 关闭client
@@ -199,11 +206,51 @@ void read_request()
   }
 }
 
-void send_file()
+void *thread_response(void *args)
+{
+  main_response();
+}
+
+void main_response()
 {
   // CYAN("%s %d: %s %s", __func__, __LINE__, file_requested, content_type);
 
-  int partial_content = 0;
+  // 1 判断file_requested的文件类型
+  struct stat file_stat;
+  if (lstat(file_requested, &file_stat) == -1) {
+    RED("invalid file %s", file_requested);
+  }
+
+  switch (file_stat.st_mode & S_IFMT) {
+    case S_IFBLK:
+      RED("block device\n");            
+      break;
+    case S_IFCHR:
+      RED("character device\n");        
+      break;
+    case S_IFDIR:
+      send_dir();              
+      break;
+    case S_IFIFO:
+      RED("FIFO/pipe\n");               
+      break;
+    case S_IFLNK:
+      RED("symlink\n");                 
+      break;
+    case S_IFREG:
+      send_file();      
+      break;
+    case S_IFSOCK:
+      RED("socket\n");                  
+      break;
+    default:
+      RED("unknown?\n");                
+      break;
+  }
+}
+
+void send_file() {
+  // 传输普通文件
   int fd = open(file_requested, O_RDONLY);
   extern int errno;// 查看文件打开失败时的错误原因
   if (fd < 0) {
@@ -212,6 +259,8 @@ void send_file()
   content_total = lseek(fd, 0, SEEK_END);// 计算文件总大小
   int range_total;// 传输部分的总大小
 
+  // 2 根据file_requested的后缀判断文件类型, 以使用不同的传输方式
+  int partial_content = 0;
   // send http header
   if (strcmp(content_type, ".html") == 0) {
     sprintf(content_type, "text/html");
@@ -228,7 +277,7 @@ void send_file()
   } else if (strcmp(content_type, ".mp4") == 0) {
     sprintf(content_type, "video/mp4");
     if (range_start == -1) {
-      range_start = 0;// TODO
+      range_start = 0;// TODO 从头开始传输
     }
     partial_content = 1;// 断点续传
   } else {
@@ -280,6 +329,7 @@ void send_file()
     memset(file_content, 0, 4096);
     int size = read(fd, file_content, 1024);
     if (size <= 0) {
+      // TODO 未处理的bug
       break;
     }
     delta += size;
@@ -290,6 +340,10 @@ void send_file()
 
   close(fd);
   close(c_sock);// 关闭client
+}
+
+void send_dir() {
+  RED("TODO");
 }
 
 void send_helper(char *content, int size)
