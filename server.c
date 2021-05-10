@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -34,8 +35,8 @@ int c_sock;// clinet socket
 
 // request
 int header_len;// 请求头部的长度
-char request_header[4096];// user agent
-char file_requested[256];// which file requested
+char request_header[8192];// user agent
+char file_requested[256];// 完整路径的request
 // range = end - start
 // 请求头部的关于range大小的信息
 int range_start;
@@ -171,22 +172,16 @@ void *thread_response(void *args)
 
 void main_response()
 {
-  // CYAN("%s %d: %s %s", __func__, __LINE__, file_requested, content_type);
-
   // 获取文件全名
-  if (strcmp(file_requested, "/") == 0) {
-    sprintf(file_requested, "%s/index.html", rootDir);
-    sprintf(content_type, ".html");
-  } else {
-    char temp[128];
-    strcpy(temp, file_requested + 1);// skip `/`
-    sprintf(file_requested, "%s/%s", rootDir, temp);
-  }
+  char temp[128];
+  strcpy(temp, file_requested + 1);// skip 第一个 `/`
+  sprintf(file_requested, "%s/%s", rootDir, temp);
 
   // 判断file_requested的文件类型
   struct stat file_stat;
   if (lstat(file_requested, &file_stat) == -1) {
-    RED("invalid file %s", file_requested);
+    extern int errno;// 查看文件打开失败时的错误原因
+    RED("[%d] invalid file (%s)", errno, file_requested);
     send_none();
   } else {
     switch (file_stat.st_mode & S_IFMT) {
@@ -238,8 +233,8 @@ void send_file() {
   }
   content_type[j] = '\0';
 
-  GREEN("[%s]", file_requested);
-  GREEN("[%s]", content_type);
+  CYAN("[%s]", file_requested);
+  CYAN("[%s]", content_type);
 
   // 解析请求文件的范围
   range_start = -1;
@@ -275,7 +270,7 @@ void send_file() {
   int fd = open(file_requested, O_RDONLY);
   extern int errno;// 查看文件打开失败时的错误原因
   if (fd < 0) {
-    RED("[%d] %s", errno, file_requested);
+    RED("[%d] can't open %s", errno, file_requested);
   }
   content_total = lseek(fd, 0, SEEK_END);// 计算文件总大小
   int range_total;// 传输部分的总大小
@@ -364,30 +359,66 @@ void send_file() {
 }
 
 void send_dir() {
-  RED("TODO");
-  // 只显示前100个文件
-  close(c_sock);// TODO 关闭client
+  struct dirent *file_item;
+  int file_num = 0;
+  char link_item[1024];
+
+  // html头部
+  sprintf(file_content, 
+  "<html>\r\n"
+  "<head>\r\n"
+  "  <h1>%s</h1>\r\n"
+  "</head>\r\n"
+  "<body>\r\n", file_requested);
+
+  // 遍历目录下的文件
+  DIR *requested_dir = opendir(file_requested);
+  while (file_item = readdir(requested_dir)) {
+    // 只显示前100个文件
+    if (file_num > 100) break;
+    sprintf(link_item, "<a href=\"%s\">%s<a><br>\r\n", file_item->d_name, file_item->d_name);
+    strcat(file_content, link_item);
+    file_num ++;
+  }
+  strcat(file_content,
+  "</body>\r\n"
+  "</html>\r\n");
+  
+  sprintf(content_type, "text/html");
+  // 传输全部文件
+  int range_total = strlen(file_content);// 传输部分的总大小
+  sprintf(response_header, 
+    "HTTP/1.1 200 OK\r\n"
+    "Content-Type: %s\r\n"
+    "Content-Length: %d\r\n"
+    "\r\n"
+    , content_type
+    , range_total
+    );
+  send(c_sock, response_header, strlen(response_header), 0);
+  MAGENTA("%s", response_header);
+
+  send_helper(file_content, range_total);
+
+  close(c_sock);// 关闭client
 }
 
 void send_404()
 {
   // 404页面
   sprintf(file_content,
-  "<html>"
-  "  <head>"
-  "    <h1>404</h1>"
-  "  </head>"
-  "</html>");
+    "<html>\r\n"
+    "  <head>\r\n"
+    "    <h1>404</h1>\r\n"
+    "  </head>\r\n"
+    "</html>\r\n");
 
-  int range_total;// 传输部分的总大小
 
   // 2 根据file_requested的后缀判断文件类型, 以使用不同的传输方式
 
-  int partial_content = 0;
-  // send http header
   sprintf(content_type, "text/html");
   // 传输全部文件
-  range_total = strlen(file_content);
+  int range_total = strlen(file_content);// 传输部分的总大小
   sprintf(response_header, 
       "HTTP/1.1 200 OK\r\n"
       "Content-Type: %s\r\n"
