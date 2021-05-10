@@ -279,6 +279,9 @@ void send_file()
   while (delta < range_total) {
     memset(file_content, 0, 4096);
     int size = read(fd, file_content, 1024);
+    if (size <= 0) {
+      break;
+    }
     delta += size;
     // send(c_sock, file_content, strlen(file_content), 0);
     send_helper(file_content, size);
