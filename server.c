@@ -24,7 +24,8 @@
 #define CYAN(format, ...) \
   printf("\033[1;36m" format "\33[0m\n", ## __VA_ARGS__)
 
-const int VIDEO_SIZE = 4096;// 1048576
+const int VIDEO_MIN_SIZE = 4096;
+const int VIDEO_MAX_SIZE = 1048576;
 
 // socket
 struct sockaddr_in s_addr;
@@ -296,7 +297,7 @@ void send_file() {
   } else if (strcmp(content_type, ".mp4") == 0) {
     sprintf(content_type, "video/mp4");
     if (range_start == -1) {
-      range_start = 0;// TODO 从头开始传输
+      range_start = 0;// 从头开始传输
     }
     partial_content = 1;// 断点续传
   } else {
@@ -306,9 +307,9 @@ void send_file() {
     // 计算传输范围
     if (range_end == -1) {
       // 直至文件末尾
-      range_end = long_min(file_size - 1, range_start + VIDEO_SIZE);// TODO
+      range_end = long_min(file_size - 1, range_start + VIDEO_MIN_SIZE);
     }
-    range_total = range_end - range_start;
+    range_total = long_min(range_end - range_start, VIDEO_MAX_SIZE);
     sprintf(response_header, 
         "HTTP/1.1 206 Partial Content\r\n"
         "Content-Type: %s\r\n"
