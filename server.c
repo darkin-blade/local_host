@@ -59,6 +59,8 @@ void send_helper(char *, int);
 // 传输不同类型的文件
 void send_file();// 普通类型的文件
 void send_dir();// 目录
+void send_404();// 无效文件
+void send_none();// 空文件
 
 void sigpipe_handler();
 int my_min(int a, int b) {
@@ -89,7 +91,7 @@ int main(int argc, char *argv[])
       int thread_result = pthread_create(&send_thread, NULL, thread_response, NULL);
       if (thread_result) {
         RED("Failed to create thread to send file");
-        main_response();// TODO
+        assert(0);// TODO
       }
 
       // close(c_sock);// 关闭client
@@ -165,37 +167,54 @@ void main_response()
 {
   // CYAN("%s %d: %s %s", __func__, __LINE__, file_requested, content_type);
 
-  // 1 判断file_requested的文件类型
+  // 获取文件全名
+  if (strcmp(file_requested, "/") == 0) {
+    sprintf(file_requested, "%s/index.html", rootDir);
+    sprintf(content_type, ".html");
+  } else {
+    char temp[128];
+    strcpy(temp, file_requested + 1);// skip `/`
+    sprintf(file_requested, "%s/%s", rootDir, temp);
+  }
+
+  // 判断file_requested的文件类型
   struct stat file_stat;
   if (lstat(file_requested, &file_stat) == -1) {
     RED("invalid file %s", file_requested);
-  }
-
-  switch (file_stat.st_mode & S_IFMT) {
-    case S_IFBLK:
-      RED("block device\n");            
-      break;
-    case S_IFCHR:
-      RED("character device\n");        
-      break;
-    case S_IFDIR:
-      send_dir();              
-      break;
-    case S_IFIFO:
-      RED("FIFO/pipe\n");               
-      break;
-    case S_IFLNK:
-      RED("symlink\n");                 
-      break;
-    case S_IFREG:
-      send_file();      
-      break;
-    case S_IFSOCK:
-      RED("socket\n");                  
-      break;
-    default:
-      RED("unknown?\n");                
-      break;
+    send_none();
+  } else {
+    switch (file_stat.st_mode & S_IFMT) {
+      case S_IFBLK:
+        RED("block device\n");            
+        send_404();
+        break;
+      case S_IFCHR:
+        RED("character device\n");        
+        send_404();
+        break;
+      case S_IFDIR:
+        send_dir();              
+        break;
+      case S_IFIFO:
+        RED("FIFO/pipe\n");               
+        send_404();
+        break;
+      case S_IFLNK:
+        RED("symlink\n");                 
+        send_404();
+        break;
+      case S_IFREG:
+        send_file();      
+        break;
+      case S_IFSOCK:
+        RED("socket\n");                  
+        send_404();
+        break;
+      default:
+        RED("unknown?\n");                
+        send_404();
+        break;
+    }
   }
 }
 
@@ -204,22 +223,14 @@ void send_file() {
   int i, j;
 
   // 解析请求文件的格式
-  if (strcmp(file_requested, "/") == 0) {
-    sprintf(file_requested, "%s/index.html", rootDir);
-    sprintf(content_type, ".html");
-  } else {
-    char temp[128];
-    strcpy(temp, file_requested + 1);// skip `/`
-    sprintf(file_requested, "%s/%s", rootDir, temp);
-    int filename_len = strlen(file_requested);
-    for (i = filename_len; file_requested[i] != '.'; i --) {// find `.`
-      // do nothing
-    }
-    for (int j = 0; i < filename_len; i ++, j ++) {
-      content_type[j] = file_requested[i];
-    }
-    content_type[j] = '\0';
+  int filename_len = strlen(file_requested);
+  for (i = filename_len; file_requested[i] != '.'; i --) {// find `.`
+    // do nothing
   }
+  for (int j = 0; i < filename_len; i ++, j ++) {
+    content_type[j] = file_requested[i];
+  }
+  content_type[j] = '\0';
 
   GREEN("[%s]", file_requested);
   GREEN("[%s]", content_type);
@@ -349,6 +360,46 @@ void send_file() {
 void send_dir() {
   RED("TODO");
   close(c_sock);// TODO 关闭client
+}
+
+void send_404()
+{
+  // 404页面
+  sprintf(file_content,
+  "<html>"
+  "  <head>"
+  "    <h1>404</h1>"
+  "  </head>"
+  "</html>");
+
+  int range_total;// 传输部分的总大小
+
+  // 2 根据file_requested的后缀判断文件类型, 以使用不同的传输方式
+
+  int partial_content = 0;
+  // send http header
+  sprintf(content_type, "text/html");
+  // 传输全部文件
+  range_total = strlen(file_content);
+  sprintf(response_header, 
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: %s\r\n"
+      "Content-Length: %d\r\n"
+      "\r\n"
+      , content_type
+      , range_total
+      );
+  send(c_sock, response_header, strlen(response_header), 0);
+  MAGENTA("%s", response_header);
+
+  send_helper(file_content, range_total);
+
+  close(c_sock);// 关闭client
+}
+
+void send_none()
+{
+  // 空文件
 }
 
 void send_helper(char *content, int size)
