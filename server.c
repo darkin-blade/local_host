@@ -37,6 +37,7 @@ int c_sock;// clinet socket
 int header_len;// 请求头部的长度
 char request_header[8192];// user agent
 char file_requested[256];// 完整路径的request
+char cur_dir[128];// 浏览的当前目录名
 // range = end - start
 // 请求头部的关于range大小的信息
 int range_start;
@@ -173,9 +174,9 @@ void *thread_response(void *args)
 void main_response()
 {
   // 获取文件全名
-  char temp[128];
-  strcpy(temp, file_requested + 1);// skip 第一个 `/`
-  sprintf(file_requested, "%s/%s", rootDir, temp);
+  strcpy(cur_dir, file_requested + 1);// skip 第一个 `/`
+  CYAN("%s %s", cur_dir, file_requested);
+  sprintf(file_requested, "%s/%s", rootDir, cur_dir);
 
   // 判断file_requested的文件类型
   struct stat file_stat;
@@ -380,6 +381,7 @@ void send_dir() {
     strcat(file_content, link_item);
     file_num ++;
   }
+  closedir(requested_dir);
   strcat(file_content,
   "</body>\r\n"
   "</html>\r\n");
