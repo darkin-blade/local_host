@@ -40,8 +40,9 @@ char file_requested[256];// 完整路径的request
 char cur_dir[128];// 浏览的当前目录名
 // range = end - start
 // 请求头部的关于range大小的信息
-int range_start;
-int range_end;
+long long range_start;// 有可能为负数
+long long range_end;
+long long range_total;
 
 // response
 char response_header[1024];// http response header
@@ -49,7 +50,7 @@ char file_content[4096];// file content
 char content_type[128];// content type
 // content range = end - start
 // 根据本地文件判断得到的content大小信息
-int content_total;
+long long file_size;
 
 // 线程
 pthread_t send_thread;// 传输文件的线程
@@ -71,7 +72,7 @@ void send_helper(char *, int);
 
 // 其他
 void sigpipe_handler();
-int my_min(int a, int b) {
+long long long_min(long long a, long long b) {
   if (a < b) return a;
   return b;
 }
@@ -272,8 +273,10 @@ void send_file() {
   if (fd < 0) {
     RED("[%d] can't open %s", errno, file_requested);
   }
-  content_total = lseek(fd, 0, SEEK_END);// 计算文件总大小
-  int range_total;// 传输部分的总大小
+  file_size = lseek(fd, 0, SEEK_END);// 计算文件总大小
+  if (file_size < 0) {
+    RED("[%s] invalid size", file_requested);
+  }
 
   // 2 根据file_requested的后缀判断文件类型, 以使用不同的传输方式
   int partial_content = 0;
@@ -303,18 +306,18 @@ void send_file() {
     // 计算传输范围
     if (range_end == -1) {
       // 直至文件末尾
-      range_end = my_min(content_total - 1, range_start + VIDEO_SIZE);// TODO
+      range_end = long_min(file_size - 1, range_start + VIDEO_SIZE);// TODO
     }
     range_total = range_end - range_start;
     sprintf(response_header, 
         "HTTP/1.1 206 Partial Content\r\n"
         "Content-Type: %s\r\n"
-        "Content-Range: bytes %d-%d/%d\r\n"
-        "Content-Length: %d\r\n"
+        "Content-Range: bytes %lld-%lld/%lld\r\n"
+        "Content-Length: %lld\r\n"
         "Accept-Ranges: bytes\r\n"
         "\r\n"
         , content_type
-        , range_start, range_end, content_total
+        , range_start, range_end, file_size
         , range_total
         );
     // 发送头部
@@ -324,11 +327,11 @@ void send_file() {
     memset(file_content, 0, sizeof(file_content));
   } else {
     // 传输全部文件
-    range_total = content_total;
+    range_total = file_size;
     sprintf(response_header, 
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: %s\r\n"
-        "Content-Length: %d\r\n"
+        "Content-Length: %lld\r\n"
         "\r\n"
         , content_type
         , range_total
@@ -340,10 +343,10 @@ void send_file() {
   }
   MAGENTA("%s", response_header);
 
-  int delta = 0;
+  long long delta = 0;
   while (delta < range_total) {
     memset(file_content, 0, 4096);
-    int size = read(fd, file_content, 1024);
+    long long size = read(fd, file_content, 1024);
     if (size <= 0) {
       // TODO 未处理的bug
       break;
@@ -351,7 +354,7 @@ void send_file() {
     delta += size;
     // send(c_sock, file_content, strlen(file_content), 0);
     send_helper(file_content, size);
-    GREEN("%d/%d", delta, range_total);
+    GREEN("%lld/%lld", delta, range_total);
   }
 
   close(fd);
@@ -396,11 +399,11 @@ void send_dir() {
   
   sprintf(content_type, "text/html");
   // 传输全部文件
-  int range_total = strlen(file_content);// 传输部分的总大小
+  range_total = strlen(file_content);// 传输部分的总大小
   sprintf(response_header, 
     "HTTP/1.1 200 OK\r\n"
     "Content-Type: %s\r\n"
-    "Content-Length: %d\r\n"
+    "Content-Length: %lld\r\n"
     "\r\n"
     , content_type
     , range_total
@@ -423,16 +426,15 @@ void send_404()
     "  </head>\r\n"
     "</html>\r\n");
 
-
   // 2 根据file_requested的后缀判断文件类型, 以使用不同的传输方式
 
   sprintf(content_type, "text/html");
   // 传输全部文件
-  int range_total = strlen(file_content);// 传输部分的总大小
+  range_total = strlen(file_content);// 传输部分的总大小
   sprintf(response_header, 
       "HTTP/1.1 200 OK\r\n"
       "Content-Type: %s\r\n"
-      "Content-Length: %d\r\n"
+      "Content-Length: %lld\r\n"
       "\r\n"
       , content_type
       , range_total
