@@ -227,7 +227,7 @@ void send_file() {
   for (i = filename_len; file_requested[i] != '.'; i --) {// find `.`
     // do nothing
   }
-  for (int j = 0; i < filename_len; i ++, j ++) {
+  for (j = 0; i < filename_len; i ++, j ++) {
     content_type[j] = file_requested[i];
   }
   content_type[j] = '\0';
@@ -350,7 +350,7 @@ void send_file() {
     delta += size;
     // send(c_sock, file_content, strlen(file_content), 0);
     send_helper(file_content, size);
-    GREEN("%d/%d", delta, range_total);
+    // GREEN("%d/%d", delta, range_total);
   }
 
   close(fd);
