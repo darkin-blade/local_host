@@ -31,6 +31,8 @@ socklen_t c_addr_size;
 int s_sock;// server socket
 int c_sock;// clinet socket
 
+int header_len;// 请求头部的长度
+
 char request_header[4096];// user agent
 char file_requested[256];// which file requested
 // range = end - start
@@ -135,13 +137,12 @@ void init_server(int argc, char *argv[])
 
 void read_request()
 {
-  int i, j;
-  int header_len = strlen(request_header);
+  header_len = strlen(request_header);
   // memset(file_requested, 0, sizeof(file_requested));
   // memset(content_type, 0, sizeof(content_type));
 
   // 解析请求的文件
-  for (i = 0, j = 0; i < header_len - 2; i ++) {
+  for (int i = 0, j = 0; i < header_len - 2; i ++) {
     if (request_header[i] == 'G' &&
         request_header[i + 1] == 'E' &&
         request_header[i + 2] == 'T') {// `GET` keyword
@@ -151,57 +152,6 @@ void read_request()
         j ++, i ++;
       }
       file_requested[j] = '\0';
-    }
-  }
-
-  // 解析请求文件的格式
-  if (strcmp(file_requested, "/") == 0) {
-    sprintf(file_requested, "%s/index.html", rootDir);
-    sprintf(content_type, ".html");
-  } else {
-    char temp[128];
-    strcpy(temp, file_requested + 1);// skip `/`
-    sprintf(file_requested, "%s/%s", rootDir, temp);
-    int filename_len = strlen(file_requested);
-    for (i = filename_len; file_requested[i] != '.'; i --) {// find `.`
-      // do nothing
-    }
-    for (j = 0; i < filename_len; i ++, j ++) {
-      content_type[j] = file_requested[i];
-    }
-    content_type[j] = '\0';
-  }
-
-  GREEN("[%s]", file_requested);
-  GREEN("[%s]", content_type);
-
-  // 解析请求文件的范围
-  range_start = -1;
-  range_end = -1;
-  for (i = 0; i < header_len - 4; i ++) {
-    if (request_header[i] == 'R' &&
-        request_header[i + 1] == 'a' &&
-        request_header[i + 2] == 'n' &&
-        request_header[i + 3] == 'g' &&
-        request_header[i + 4] == 'e') {
-      i += 13;// skip `Range: bytes=`
-      range_start = 0;
-      while (request_header[i] >= '0' && request_header[i] <= '9') {
-        range_start = range_start * 10 + request_header[i] - '0';
-        i ++;
-      }
-      assert(request_header[i] == '-');
-      i ++;
-      if (request_header[i] >= '0' && request_header[i] <= '9') {
-        range_end = 0;
-        while (request_header[i] >= '0' && request_header[i] <= '9') {
-          range_end = range_end * 10 + request_header[i] - '0';
-          i ++;
-        }
-      } else {
-        // 直至文件末尾
-        assert(range_end == -1);
-      }
     }
   }
 }
@@ -251,6 +201,60 @@ void main_response()
 
 void send_file() {
   // 传输普通文件
+  int i, j;
+
+  // 解析请求文件的格式
+  if (strcmp(file_requested, "/") == 0) {
+    sprintf(file_requested, "%s/index.html", rootDir);
+    sprintf(content_type, ".html");
+  } else {
+    char temp[128];
+    strcpy(temp, file_requested + 1);// skip `/`
+    sprintf(file_requested, "%s/%s", rootDir, temp);
+    int filename_len = strlen(file_requested);
+    for (i = filename_len; file_requested[i] != '.'; i --) {// find `.`
+      // do nothing
+    }
+    for (int j = 0; i < filename_len; i ++, j ++) {
+      content_type[j] = file_requested[i];
+    }
+    content_type[j] = '\0';
+  }
+
+  GREEN("[%s]", file_requested);
+  GREEN("[%s]", content_type);
+
+  // 解析请求文件的范围
+  range_start = -1;
+  range_end = -1;
+  for (i = 0; i < header_len - 4; i ++) {
+    if (request_header[i] == 'R' &&
+        request_header[i + 1] == 'a' &&
+        request_header[i + 2] == 'n' &&
+        request_header[i + 3] == 'g' &&
+        request_header[i + 4] == 'e') {
+      i += 13;// skip `Range: bytes=`
+      range_start = 0;
+      while (request_header[i] >= '0' && request_header[i] <= '9') {
+        range_start = range_start * 10 + request_header[i] - '0';
+        i ++;
+      }
+      assert(request_header[i] == '-');
+      i ++;
+      if (request_header[i] >= '0' && request_header[i] <= '9') {
+        range_end = 0;
+        while (request_header[i] >= '0' && request_header[i] <= '9') {
+          range_end = range_end * 10 + request_header[i] - '0';
+          i ++;
+        }
+      } else {
+        // 直至文件末尾
+        assert(range_end == -1);
+      }
+    }
+  }
+
+  // 判断文件是否有效
   int fd = open(file_requested, O_RDONLY);
   extern int errno;// 查看文件打开失败时的错误原因
   if (fd < 0) {
@@ -344,6 +348,7 @@ void send_file() {
 
 void send_dir() {
   RED("TODO");
+  close(c_sock);// TODO 关闭client
 }
 
 void send_helper(char *content, int size)
