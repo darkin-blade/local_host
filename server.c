@@ -25,36 +25,38 @@
 
 const int VIDEO_SIZE = 4096;// 1048576
 
+// socket
 struct sockaddr_in s_addr;
 struct sockaddr_in c_addr;
 socklen_t c_addr_size;
 int s_sock;// server socket
 int c_sock;// clinet socket
 
+// request
 int header_len;// 请求头部的长度
-
 char request_header[4096];// user agent
 char file_requested[256];// which file requested
 // range = end - start
+// 请求头部的关于range大小的信息
 int range_start;
 int range_end;
 
+// response
 char response_header[1024];// http response header
 char file_content[4096];// file content
 char content_type[128];// content type
 // content range = end - start
-int content_start;
-int content_end;
+// 根据本地文件判断得到的content大小信息
 int content_total;
 
 // 线程
 pthread_t send_thread;// 传输文件的线程
 
 void init_server(int argc, char *argv[]);
+
 void read_request();
 void main_response();
 void *thread_response(void *args);
-void send_helper(char *, int);
 
 // 传输不同类型的文件
 void send_file();// 普通类型的文件
@@ -62,6 +64,10 @@ void send_dir();// 目录
 void send_404();// 无效文件
 void send_none();// 空文件
 
+// 功能函数
+void send_helper(char *, int);
+
+// 其他
 void sigpipe_handler();
 int my_min(int a, int b) {
   if (a < b) return a;
@@ -350,7 +356,7 @@ void send_file() {
     delta += size;
     // send(c_sock, file_content, strlen(file_content), 0);
     send_helper(file_content, size);
-    // GREEN("%d/%d", delta, range_total);
+    GREEN("%d/%d", delta, range_total);
   }
 
   close(fd);
@@ -359,6 +365,7 @@ void send_file() {
 
 void send_dir() {
   RED("TODO");
+  // 只显示前100个文件
   close(c_sock);// TODO 关闭client
 }
 
@@ -399,7 +406,7 @@ void send_404()
 
 void send_none()
 {
-  // 空文件
+  // TODO 空文件
 }
 
 void send_helper(char *content, int size)
